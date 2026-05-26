@@ -1,0 +1,56 @@
+services:
+  tidb-node1:
+    image: ${TIDBX_IMAGE}
+    privileged: true
+    restart: always
+    network_mode: host
+    environment:
+      - TIDB_NODE1_IP=${NODE_IP}
+      - TIDB_NODE2_IP=${PEER_IP}
+      - PD_CLI_PORT=${PD_CLI_PORT}
+      - PD_PEER_PORT=${PD_PEER_PORT}
+      - TIKV_PORT=${TIKV_PORT}
+      - TIKV_STATUS_PORT=${TIKV_STATUS_PORT}
+      - TIDB_PORT=${TIDB_PORT}
+      - TIDB_STATUS_PORT=${TIDB_STATUS_PORT}
+    command: |
+      /bin/sh -c '
+      exec /tidbx-server \
+        --pd.name=pd-node1 \
+        --pd.client-urls=http://0.0.0.0:$${PD_CLI_PORT} \
+        --pd.advertise-client-urls=http://$${TIDB_NODE1_IP}:$${PD_CLI_PORT} \
+        --pd.peer-urls=http://0.0.0.0:$${PD_PEER_PORT} \
+        --pd.advertise-peer-urls=http://$${TIDB_NODE1_IP}:$${PD_PEER_PORT} \
+        --pd.data-dir=/var/lib/data/pd/data \
+        --pd.initial-cluster=pd-node1=http://$${TIDB_NODE1_IP}:$${PD_PEER_PORT},pd-node2=http://$${TIDB_NODE2_IP}:$${PD_PEER_PORT} \
+        --pd.config=/etc/tidbx/conf/pd.toml \
+        --pd.log-file=/var/lib/data/pd/log/pd.log \
+        --tikv.addr=0.0.0.0:$${TIKV_PORT} \
+        --tikv.advertise-addr=$${TIDB_NODE1_IP}:$${TIKV_PORT} \
+        --tikv.status-addr=0.0.0.0:$${TIKV_STATUS_PORT} \
+        --tikv.advertise-status-addr=$${TIDB_NODE1_IP}:$${TIKV_STATUS_PORT} \
+        --tikv.pd=$${TIDB_NODE1_IP}:$${PD_CLI_PORT},$${TIDB_NODE2_IP}:$${PD_CLI_PORT} \
+        --tikv.data-dir=/var/lib/data/tikv/data \
+        --tikv.config=/etc/tidbx/conf/tikv.toml \
+        --tikv.log-file=/var/lib/data/tikv/log/tikv.log \
+        --tidb.P=$${TIDB_PORT} \
+        --tidb.status=$${TIDB_STATUS_PORT} \
+        --tidb.host=0.0.0.0 \
+        --tidb.advertise-address=$${TIDB_NODE1_IP} \
+        --tidb.store=tikv \
+        --tidb.initialize-insecure \
+        --tidb.path=$${TIDB_NODE1_IP}:$${PD_CLI_PORT},$${TIDB_NODE2_IP}:$${PD_CLI_PORT} \
+        --tidb.log-slow-query=/var/lib/data/tidb/log/tidb_slow_query.log \
+        --tidb.config=/etc/tidbx/conf/tidb.toml \
+        --tidb.log-file=/var/lib/data/tidb/log/tidb.log
+      '
+    volumes:
+      - /data/tidb/etc:/etc/tidbx/conf
+      - /data/tidb/var:/var/lib/data
+      - /data/scripts/keepalived_arbiter.sh:/usr/local/bin/keepalived_arbiter.sh:ro
+      - /tmp/keepalived_state:/tmp/keepalived_state:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT}'
+          memory: ${MEMORY_LIMIT}

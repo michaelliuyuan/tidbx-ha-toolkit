@@ -1,0 +1,10 @@
+[replication]
+replication-mode = "dr-auto-sync"
+[replication.dr-auto-sync]
+label-key = "dc"
+primary = "dc1"
+dr = "dc2"
+primary-replicas = 1
+dr-replicas = 1
+wait-store-timeout = "120s"
+wait-sync-timeout = "120s"

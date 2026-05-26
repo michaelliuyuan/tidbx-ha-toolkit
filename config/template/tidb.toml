@@ -1,0 +1,13 @@
+host = "0.0.0.0"
+advertise-address = "${NODE_IP}"
+port = 4000
+status = "${TIDB_STATUS_PORT}"
+
+store = "tikv"
+path = "${NODE_IP}:2379,${PEER_IP}:2379"
+
+[log]
+level = "info"
+
+[performance]
+tcp-keep-alive = true

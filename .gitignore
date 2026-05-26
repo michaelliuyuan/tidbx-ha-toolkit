@@ -1,0 +1,10 @@
+*.tar
+*.tar.gz
+*.log
+.env
+!node1.env.example
+!node2.env.example
+docker-compose_node*.generated.yml
+/data/
+__pycache__/
+.DS_Store

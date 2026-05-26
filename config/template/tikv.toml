@@ -1,0 +1,16 @@
+[server]
+addr = "0.0.0.0:20160"
+advertise-addr = "${NODE_IP}:20160"
+status-addr = "0.0.0.0:20180"
+
+[storage]
+data-dir = "/var/lib/data/tikv/data"
+
+[rocksdb]
+wal-dir = ""
+
+[raftstore]
+sync-log = true
+
+[server.labels]
+dc = "${NODE_ROLE}"
