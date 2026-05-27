@@ -6,6 +6,9 @@ status-addr = "0.0.0.0:20180"
 [storage]
 data-dir = "/var/lib/data/tikv/data"
 
+[storage.block-cache]
+capacity = "1GB"
+
 [rocksdb]
 wal-dir = ""
 

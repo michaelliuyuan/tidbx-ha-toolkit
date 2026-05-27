@@ -49,8 +49,3 @@ services:
       - /data/tidb/var:/var/lib/data
       - /data/scripts/keepalived_arbiter.sh:/usr/local/bin/keepalived_arbiter.sh:ro
       - /tmp/keepalived_state:/tmp/keepalived_state:ro
-    deploy:
-      resources:
-        limits:
-          cpus: '${CPU_LIMIT}'
-          memory: ${MEMORY_LIMIT}
