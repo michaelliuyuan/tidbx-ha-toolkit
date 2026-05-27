@@ -44,9 +44,9 @@ echo "=== 复制探活脚本 ==="
 cp "${PROJECT_DIR}/config/template/keepalived/keepalived_arbiter.sh" "${SCRIPTS_DIR}/keepalived_arbiter.sh"
 chmod +x "${SCRIPTS_DIR}/keepalived_arbiter.sh"
 
-echo "=== 生成 Docker Compose 文件 ==="
-envsubst < "${PROJECT_DIR}/config/docker-compose/docker-compose_node1.yml" > "${PROJECT_DIR}/docker-compose_node1.generated.yml"
-envsubst < "${PROJECT_DIR}/config/docker-compose/docker-compose_node2.yml" > "${PROJECT_DIR}/docker-compose_node2.generated.yml"
+echo "=== 复制 Docker Compose 文件 ==="
+cp "${PROJECT_DIR}/config/docker-compose/docker-compose_node1.yml" "${PROJECT_DIR}/docker-compose_node1.generated.yml"
+cp "${PROJECT_DIR}/config/docker-compose/docker-compose_node2.yml" "${PROJECT_DIR}/docker-compose_node2.generated.yml"
 
 echo "=== 数据目录初始化完成 ==="
 echo "  配置文件: ${DATA_DIR}/etc/"

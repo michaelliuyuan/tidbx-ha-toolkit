@@ -35,8 +35,7 @@ section "  VIP: ${VIP}"
 section "=============================================="
 
 section "=== 阶段 0: 环境预检 ==="
-bash "${PROJECT_DIR}/deploy/verify.sh" --env "$ENV_FILE"
-if [ $? -ne 0 ]; then
+if ! bash "${PROJECT_DIR}/deploy/verify.sh" --env "$ENV_FILE"; then
     error "环境预检失败，请检查集群状态"
     exit 1
 fi

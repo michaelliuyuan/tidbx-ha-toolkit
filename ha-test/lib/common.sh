@@ -41,8 +41,12 @@ init_test_env() {
     if [ "$SSH_USER" != "root" ]; then
         SSH_OPTS="${SSH_OPTS} -o LogLevel=ERROR"
     fi
+    SUDO="sudo"
+    if [ "$SSH_USER" = "root" ]; then
+        SUDO=""
+    fi
 
-    export NODE_IP PEER_IP VIP NIC PD_CLI_PORT TIDB_PORT SSH_USER SSH_OPTS
+    export NODE_IP PEER_IP VIP NIC PD_CLI_PORT TIDB_PORT SSH_USER SSH_OPTS SUDO
     export TEST_REPORT TEST_RESULTS_DIR
 }
 
@@ -118,28 +122,28 @@ add_network_delay() {
     local delay="$2"
     local nic="${NIC:-ens33}"
     ssh ${SSH_OPTS} "${SSH_USER}@${target_ip}" \
-        "sudo tc qdisc add dev ${nic} root netem delay ${delay}" 2>/dev/null
+        "${SUDO} tc qdisc add dev ${nic} root netem delay ${delay}" 2>/dev/null
 }
 
 remove_network_delay() {
     local target_ip="$1"
     local nic="${NIC:-ens33}"
     ssh ${SSH_OPTS} "${SSH_USER}@${target_ip}" \
-        "sudo tc qdisc del dev ${nic} root 2>/dev/null || true" 2>/dev/null
+        "${SUDO} tc qdisc del dev ${nic} root 2>/dev/null || true" 2>/dev/null
 }
 
 stop_node() {
     local node_ip="$1"
     info "停止节点 ${node_ip} ..."
     ssh ${SSH_OPTS} "${SSH_USER}@${node_ip}" \
-        "sudo docker stop \$(sudo docker ps -q) 2>/dev/null; sudo systemctl stop keepalived" 2>/dev/null
+        "${SUDO} docker stop \$(${SUDO} docker ps -q) 2>/dev/null; ${SUDO} systemctl stop keepalived" 2>/dev/null
 }
 
 start_node() {
     local node_ip="$1"
     info "启动节点 ${node_ip} ..."
     ssh ${SSH_OPTS} "${SSH_USER}@${node_ip}" \
-        "sudo systemctl start keepalived; sudo docker start \$(sudo docker ps -aq) 2>/dev/null" 2>/dev/null
+        "${SUDO} systemctl start keepalived; ${SUDO} docker start \$(${SUDO} docker ps -aq) 2>/dev/null" 2>/dev/null
 }
 
 ssh_exec() {

@@ -40,7 +40,7 @@ else
 fi
 
 if [ -f "$COMPOSE_FILE" ]; then
-    docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down 2>/dev/null || true
     info "Docker Compose 容器已停止"
 fi
 
