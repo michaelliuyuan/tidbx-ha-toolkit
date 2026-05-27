@@ -1,7 +1,7 @@
 [log]
 level = "info"
 [labels]
-dc = "dc1"
+dc = "${DC_LABEL}"
 [replication]
 enable-placement-rules = true
 isolation-level = "dc"
@@ -12,5 +12,5 @@ replication-mode = "even-replicas"
 [replication-mode.even-replicas]
 downgrade-timeout = "20s"
 [replication-mode.even-replicas.arbitration]
-script = ["/bin/bash", "/usr/local/bin/keepalived_arbiter.sh", "tidb-node1"]
+script = ["/bin/bash", "/usr/local/bin/keepalived_arbiter.sh", "${VIP}"]
 type = "custom-script"
