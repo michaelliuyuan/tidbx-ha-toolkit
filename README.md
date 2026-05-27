@@ -448,7 +448,7 @@ tidbx-ha-toolkit/
 | `PD_PEER_PORT` | PD 对等端口 | 2380 |
 | `TIKV_PORT` | TiKV 端口 | 20160 |
 | `TIDB_PORT` | TiDB MySQL 端口 | 4000 |
-| `TIDBX_IMAGE` | Docker 镜像 | tidbx:v7.1.9-0.0 |
+| `TIDBX_IMAGE` | Docker 镜像 | tidbx:v7.1.9-0.0-8af053 |
 | `TIDBX_IMAGE_FILE` | 镜像 tar 文件路径 | tidbx-v7.1.9-0.0-8af053.tar |
 
 
