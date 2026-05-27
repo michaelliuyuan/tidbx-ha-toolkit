@@ -3,3 +3,6 @@ level = "info"
 
 [performance]
 tcp-keep-alive = true
+
+[tikv_client]
+grpc-compression-type = "gzip"
