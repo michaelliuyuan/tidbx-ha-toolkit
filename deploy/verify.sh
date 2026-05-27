@@ -87,14 +87,14 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-info "4. MySQL 连接 (VIP)"
+info "4. TiDB 连接 (VIP)"
 if [ -n "$VIP" ]; then
     if command -v mysql &>/dev/null; then
         if mysql -h "$VIP" -P "$TIDB_PORT" -u root -e "SELECT 1" &>/dev/null; then
-            info "  ✅ VIP MySQL 连接正常 (${VIP}:${TIDB_PORT})"
+            info "  ✅ VIP TiDB 连接正常 (${VIP}:${TIDB_PORT})"
             PASS=$((PASS + 1))
         else
-            error "  ❌ VIP MySQL 连接失败"
+            error "  ❌ VIP TiDB 连接失败"
             FAIL=$((FAIL + 1))
         fi
     else
