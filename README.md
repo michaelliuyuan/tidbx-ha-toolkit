@@ -63,7 +63,6 @@ git clone https://github.com/michaelliuyuan/tidbx-ha-toolkit.git /home/tidb/tidb
 
 ```bash
 mkdir -p /home/tidb/offline/docker
-mkdir -p /home/tidb/offline/docker-compose
 ```
 
 然后将以下文件放到对应目录：
@@ -71,7 +70,7 @@ mkdir -p /home/tidb/offline/docker-compose
 ```
 /home/tidb/offline/
 ├── docker/              ← Docker 离线安装包（.rpm 或 .deb 文件）
-├── docker-compose/      ← Docker Compose 二进制文件（docker-compose）
+├── docker-compose       ← Docker Compose 二进制文件
 └── tidbx-719.tar        ← 平凯镜像文件（直接放在 offline/ 下）
 ```
 
@@ -451,8 +450,7 @@ tidbx-ha-toolkit/
 | `TIDB_PORT` | TiDB MySQL 端口 | 4000 |
 | `TIDBX_IMAGE` | Docker 镜像 | tidbx:v7.1.9-0.0 |
 | `TIDBX_IMAGE_FILE` | 镜像 tar 文件路径 | tidbx-719.tar |
-| `CPU_LIMIT` | 容器 CPU 限制 | 2 |
-| `MEMORY_LIMIT` | 容器内存限制 | 4G |
+
 
 ---
 
@@ -460,11 +458,15 @@ tidbx-ha-toolkit/
 
 ### 停止集群（保留数据）
 
+**两个节点都需要执行：**
+
 ```bash
 sudo bash deploy/cleanup.sh --env config/node1.env
 ```
 
 ### 完全清理（删除所有数据）
+
+**两个节点都需要执行：**
 
 ```bash
 sudo bash deploy/cleanup.sh --env config/node1.env --remove-data
