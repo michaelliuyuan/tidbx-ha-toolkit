@@ -1,19 +1,11 @@
-[server]
-addr = "0.0.0.0:20160"
-advertise-addr = "${NODE_IP}:20160"
-status-addr = "0.0.0.0:20180"
-
-[storage]
-data-dir = "/var/lib/data/tikv/data"
-
+[log]
+[log.file]
+max-backups = 7
 [storage.block-cache]
 capacity = "1GB"
-
-[rocksdb]
-wal-dir = ""
-
 [raftstore]
-sync-log = true
-
+hibernate-regions = false
+[server]
+grpc-compression-type = "gzip"
 [server.labels]
-dc = "${NODE_ROLE}"
+dc = "${DC_LABEL}"
