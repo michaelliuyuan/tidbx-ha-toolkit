@@ -50,7 +50,7 @@ run_check() {
 info "=== 集群状态验证 ==="
 
 info "1. Docker 容器状态"
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "tidb"; then
+if sudo docker ps --format '{{.Names}}' 2>/dev/null | grep -q "tidb"; then
     info "  ✅ TiDB 容器运行中"
     PASS=$((PASS + 1))
 else
