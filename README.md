@@ -140,6 +140,163 @@ sudo bash deploy/cleanup.sh --env config/node1.env
 sudo bash deploy/cleanup.sh --env config/node1.env --remove-data
 ```
 
+## 监控指南
+
+### 服务状态监控
+
+**查看 Docker 容器状态：**
+
+```bash
+# 查看当前节点容器运行状态
+sudo docker ps
+
+# 查看容器日志（排查启动问题）
+sudo docker compose -f config/docker-compose/docker-compose_node1.yml logs --tail=100
+
+# 实时跟踪日志
+sudo docker compose -f config/docker-compose/docker-compose_node1.yml logs -f
+```
+
+**查看 Keepalived 状态：**
+
+```bash
+# 检查 Keepalived 服务状态
+sudo systemctl status keepalived
+
+# 查看当前角色（MASTER / BACKUP / FAULT）
+cat /tmp/keepalived_state
+
+# 查看 VIP 是否在本节点
+ip addr show | grep <VIP>
+
+# 示例输出：
+#   inet 192.168.2.100/24 scope global ens33
+```
+
+**查看各组件进程状态（容器内）：**
+
+```bash
+# 进入容器
+sudo docker exec -it <container_id> /bin/bash
+
+# 查看 PD 日志
+cat /var/lib/data/pd/log/pd.log | tail -50
+
+# 查看 TiKV 日志
+cat /var/lib/data/tikv/log/tikv.log | tail -50
+
+# 查看 TiDB 日志
+cat /var/lib/data/tidb/log/tidb.log | tail -50
+```
+
+### 数据库复制状态监控
+
+**查看复制模式状态（最关键指标）：**
+
+```bash
+# 通过 VIP 查看（推荐）
+sudo curl -s "http://<VIP>:2379/pd/api/v1/replication_mode/status" | python3 -m json.tool
+
+# 通过节点 IP 查看
+sudo curl -s "http://<NODE_IP>:2379/pd/api/v1/replication_mode/status" | python3 -m json.tool
+
+# 正常状态输出：
+# {
+#   "mode": "even-replicas",
+#   "even-replicas": {
+#     "state": "SYNC"          ← 同步复制，数据一致
+#   }
+# }
+
+# 降级状态输出：
+# {
+#   "mode": "even-replicas",
+#   "even-replicas": {
+#     "state": "ASYNC",        ← 异步复制，可能存在数据延迟
+#     "available_label": "dc2" ← 当前可用区
+#   }
+# }
+```
+
+**查看 PD 集群成员和 Leader：**
+
+```bash
+sudo curl -s "http://<VIP>:2379/pd/api/v1/members" | python3 -m json.tool
+```
+
+**查看 PD Leader 信息：**
+
+```bash
+sudo curl -s "http://<VIP>:2379/pd/api/v1/leader" | python3 -m json.tool
+```
+
+**查看集群健康状态：**
+
+```bash
+sudo curl -s "http://<VIP>:2379/pd/api/v1/health" | python3 -m json.tool
+```
+
+**查看 Store（TiKV 节点）状态：**
+
+```bash
+sudo curl -s "http://<VIP>:2379/pd/api/v1/stores" | python3 -m json.tool
+```
+
+### 数据库连接验证
+
+```bash
+# 通过 VIP 连接（验证高可用）
+mysql -h <VIP> -P 4000 -u root -e "SELECT 1"
+
+# 通过节点 IP 连接
+mysql -h <NODE1_IP> -P 4000 -u root -e "SELECT 1"
+mysql -h <NODE2_IP> -P 4000 -u root -e "SELECT 1"
+
+# 查看数据库版本
+mysql -h <VIP> -P 4000 -u root -e "SELECT tidb_version()"
+```
+
+### 快速健康检查脚本
+
+可以将以下命令组合为日常巡检脚本：
+
+```bash
+#!/bin/bash
+VIP="192.168.2.100"
+echo "=== 1. Docker 容器状态 ==="
+sudo docker ps --format "table {{.Names}}\t{{.Status}}"
+echo ""
+echo "=== 2. Keepalived 角色 ==="
+cat /tmp/keepalived_state
+echo ""
+echo "=== 3. VIP 归属 ==="
+ip addr show | grep "$VIP" && echo "VIP 在本节点" || echo "VIP 不在本节点"
+echo ""
+echo "=== 4. 复制模式状态 ==="
+curl -s "http://$VIP:2379/pd/api/v1/replication_mode/status"
+echo ""
+echo "=== 5. 数据库连接测试 ==="
+mysql -h $VIP -P 4000 -u root -e "SELECT 1 AS connection_test" 2>/dev/null && echo "数据库连接正常" || echo "数据库连接失败"
+echo ""
+echo "=== 6. PD 集群成员 ==="
+curl -s "http://$VIP:2379/pd/api/v1/members" | python3 -c "import sys,json; data=json.load(sys.stdin); [print(f'  {m[\"name\"]}: {m[\"client_urls\"]}') for m in data.get('members',[])]" 2>/dev/null
+```
+
+### 状态对照表
+
+| 复制状态 | 含义 | 是否需要关注 |
+|---------|------|------------|
+| `SYNC` | 两节点数据同步一致 | ✅ 正常 |
+| `ASYNC` + `available_label=dc1` | Master 可用，Backup 不同步 | ⚠️ Backup 可能离线或网络异常 |
+| `ASYNC` + `available_label=dc2` | Backup 可用，Master 不同步 | ⚠️ Master 可能离线或网络异常 |
+| 请求超时 / 无响应 | PD 不可用 | ❌ 需要立即排查 |
+
+| Keepalived 角色 | 含义 |
+|----------------|------|
+| `MASTER` | VIP 在本节点，对外提供服务 |
+| `BACKUP` | 备用节点，等待接管 |
+| `FAULT` | 故障状态，需排查 |
+
 ## 前置条件
 
 - 两台 Linux 服务器（CentOS 7+ / Ubuntu 18.04+）
