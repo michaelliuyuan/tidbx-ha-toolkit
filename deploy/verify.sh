@@ -76,10 +76,10 @@ fi
 
 info "3. 复制模式"
 REPL_STATE=$(curl -sf "http://${NODE_IP}:${PD_CLI_PORT}/pd/api/v1/replication_mode/status" 2>/dev/null || echo "{}")
-if echo "$REPL_STATE" | grep -q "sync"; then
+if echo "$REPL_STATE" | grep -q "SYNC"; then
     info "  ✅ 复制模式: SYNC"
     PASS=$((PASS + 1))
-elif echo "$REPL_STATE" | grep -q "async"; then
+elif echo "$REPL_STATE" | grep -q "ASYNC"; then
     warn "  ⚠️  复制模式: ASYNC（可能正在恢复中）"
     PASS=$((PASS + 1))
 else
