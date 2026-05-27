@@ -22,7 +22,7 @@
 
 ### 软件要求
 - Root 权限（需要 sudo）
-- 平凯 tidbx Docker 镜像文件（`tidbx-719.tar`），请联系平凯工程师获取
+- 平凯 tidbx Docker 镜像文件（`tidbx-v7.1.9-0.0-8af053.tar`），请联系平凯工程师获取
 
 ### 网络规划
 
@@ -71,7 +71,7 @@ mkdir -p /home/tidb/offline/docker
 /home/tidb/offline/
 ├── docker/              ← Docker 离线安装包（.rpm 或 .deb 文件）
 ├── docker-compose       ← Docker Compose 二进制文件
-└── tidbx-719.tar        ← 平凯镜像文件（直接放在 offline/ 下）
+└── tidbx-v7.1.9-0.0-8af053.tar        ← 平凯镜像文件（直接放在 offline/ 下）
 ```
 
 > 💡 **如何获取离线包？** Docker RPM/DEB 包可从 <https://download.docker.com/linux/> 下载；Docker Compose 二进制可从 <https://github.com/docker/compose/releases> 下载。
@@ -99,7 +99,7 @@ NODE_IP=192.168.2.24          # ← 改为 Node1 的实际 IP
 PEER_IP=192.168.2.25          # ← 改为 Node2 的实际 IP
 NIC=ens33                     # ← 改为实际网卡名称（通过 ip addr 查看）
 VIP=192.168.2.100             # ← 改为你规划的虚拟 IP
-TIDBX_IMAGE_FILE=/home/tidb/offline/tidbx-719.tar  # ← 镜像文件路径
+TIDBX_IMAGE_FILE=/home/tidb/offline/tidbx-v7.1.9-0.0-8af053.tar  # ← 镜像文件路径
 ```
 
 **在 Node2（Backup 节点）上：**
@@ -121,7 +121,7 @@ NODE_IP=192.168.2.25          # ← 改为 Node2 的实际 IP
 PEER_IP=192.168.2.24          # ← 改为 Node1 的实际 IP
 NIC=ens33                     # ← 改为实际网卡名称
 VIP=192.168.2.100             # ← 与 Node1 相同的 VIP
-TIDBX_IMAGE_FILE=/home/tidb/offline/tidbx-719.tar  # ← 镜像文件路径
+TIDBX_IMAGE_FILE=/home/tidb/offline/tidbx-v7.1.9-0.0-8af053.tar  # ← 镜像文件路径
 ```
 
 > ⚠️ **重要提示**：两个节点的 `NODE_IP` 和 `PEER_IP` 是**互换**的，`VIP` 必须**相同**。
@@ -449,7 +449,7 @@ tidbx-ha-toolkit/
 | `TIKV_PORT` | TiKV 端口 | 20160 |
 | `TIDB_PORT` | TiDB MySQL 端口 | 4000 |
 | `TIDBX_IMAGE` | Docker 镜像 | tidbx:v7.1.9-0.0 |
-| `TIDBX_IMAGE_FILE` | 镜像 tar 文件路径 | tidbx-719.tar |
+| `TIDBX_IMAGE_FILE` | 镜像 tar 文件路径 | tidbx-v7.1.9-0.0-8af053.tar |
 
 
 ---
@@ -482,7 +482,7 @@ sudo bash deploy/cleanup.sh --env config/node1.env --remove-data
 **A:** 使用离线安装模式：`--offline-dir /home/tidb/offline/docker`
 
 ### Q: 部署脚本报错 "tidbx image not found"
-**A:** 确保 `tidbx-719.tar` 文件已放到两台服务器上，并在 `.env` 文件中配置了正确的 `TIDBX_IMAGE_FILE` 路径。
+**A:** 确保 `tidbx-v7.1.9-0.0-8af053.tar` 文件已放到两台服务器上，并在 `.env` 文件中配置了正确的 `TIDBX_IMAGE_FILE` 路径。
 
 ### Q: 两个节点部署后集群无法组成
 **A:** 检查：
