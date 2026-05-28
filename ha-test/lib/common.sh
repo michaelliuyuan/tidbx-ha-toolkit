@@ -184,6 +184,252 @@ ssh_exec() {
     ssh ${SSH_OPTS} "${SSH_USER}@${node_ip}" "$@"
 }
 
+BUSINESS_LOAD_DIR="/tmp/tidbx_business_load"
+PHASE_MARKER_FILE="${BUSINESS_LOAD_DIR}/phase_markers.csv"
+BUSINESS_CONCURRENCY=10
+
+start_concurrent_load() {
+    local vip="${VIP:-}"
+    local port="${TIDB_PORT:-4000}"
+    local duration="${1:-600}"
+    local concurrency="${2:-${BUSINESS_CONCURRENCY}}"
+
+    if [ -z "$vip" ]; then
+        error "VIP 未设置，无法启动并发业务模拟"
+        return 1
+    fi
+
+    rm -rf "$BUSINESS_LOAD_DIR"
+    mkdir -p "$BUSINESS_LOAD_DIR"
+    echo "timestamp,phase,action" > "$PHASE_MARKER_FILE"
+
+    if ! command -v mysql &>/dev/null; then
+        warn "mysql 客户端未安装，并发业务模拟无法运行"
+        return 1
+    fi
+
+    mysql -h "$vip" -P "$port" -u root -e "
+        CREATE DATABASE IF NOT EXISTS ha_test;
+        USE ha_test;
+        CREATE TABLE IF NOT EXISTS concurrent_test (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            worker_id INT NOT NULL,
+            seq_num BIGINT NOT NULL,
+            val VARCHAR(100),
+            ts TIMESTAMP(3)(3) DEFAULT CURRENT_TIMESTAMP(3),
+            UNIQUE KEY uk_worker_seq (worker_id, seq_num)
+        );
+        TRUNCATE TABLE concurrent_test;
+    " 2>/dev/null || true
+
+    info "启动 ${concurrency} 并发业务模拟 (VIP=${vip}, 时长=${duration}s)"
+
+    local worker_pids=""
+    for i in $(seq 1 "$concurrency"); do
+        (
+            local worker_id=$i
+            local seq=0
+            local start_time
+            start_time=$(date +%s)
+            local log_file="${BUSINESS_LOAD_DIR}/worker_${worker_id}.csv"
+            echo "timestamp,success,latency_ms" > "$log_file"
+
+            while true; do
+                local now
+                now=$(date +%s)
+                if [ $((now - start_time)) -ge "$duration" ]; then
+                    break
+                fi
+
+                seq=$((seq + 1))
+                local ts
+                ts=$(date '+%Y-%m-%d-%H:%M:%S.%3N')
+                local start_ms
+                start_ms=$(date +%s%3N 2>/dev/null || echo "0")
+                local val="w${worker_id}_s${seq}"
+
+                if mysql -h "$vip" -P "$port" -u root -e "
+                    USE ha_test;
+                    INSERT INTO concurrent_test (worker_id, seq_num, val) VALUES (${worker_id}, ${seq}, '${val}');
+                " &>/dev/null; then
+                    local end_ms
+                    end_ms=$(date +%s%3N 2>/dev/null || echo "0")
+                    local latency=$((end_ms - start_ms))
+                    echo "${ts},1,${latency}" >> "$log_file"
+                else
+                    echo "${ts},0,0" >> "$log_file"
+                fi
+
+                sleep 0.1
+            done
+        ) &
+        worker_pids="${worker_pids} $!"
+    done
+
+    echo "$worker_pids" | tr ' ' '\n' | grep -v '^$' > "${BUSINESS_LOAD_DIR}/workers.pid"
+    sleep 1
+    info "并发业务模拟已启动，${concurrency} 个 worker 运行中"
+}
+
+stop_concurrent_load() {
+    if [ -f "${BUSINESS_LOAD_DIR}/workers.pid" ]; then
+        while read -r pid; do
+            [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+        done < "${BUSINESS_LOAD_DIR}/workers.pid"
+        sleep 1
+        while read -r pid; do
+            [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null || true
+        done < "${BUSINESS_LOAD_DIR}/workers.pid"
+        rm -f "${BUSINESS_LOAD_DIR}/workers.pid"
+    fi
+    info "并发业务模拟已停止"
+}
+
+mark_phase() {
+    local phase_name="$1"
+    local action="$2"
+    local ts
+    ts=$(date '+%Y-%m-%d-%H:%M:%S.%3N')
+    echo "${ts},${phase_name},${action}" >> "$PHASE_MARKER_FILE"
+}
+
+check_data_consistency() {
+    local vip="${VIP:-}"
+    local port="${TIDB_PORT:-4000}"
+    local result_file="${BUSINESS_LOAD_DIR}/consistency_check.log"
+
+    if ! command -v mysql &>/dev/null; then
+        echo "mysql 客户端未安装，跳过一致性检查" > "$result_file"
+        echo "$result_file"
+        return
+    fi
+
+    {
+        mysql -h "$vip" -P "$port" -u root -e "
+            USE ha_test;
+            SELECT 'total_rows' AS metric, COUNT(*) AS value FROM concurrent_test;
+            SELECT worker_id,
+                   MIN(seq_num) AS min_seq,
+                   MAX(seq_num) AS max_seq,
+                   COUNT(*) AS actual_count,
+                   MAX(seq_num) - MIN(seq_num) + 1 AS expected_count,
+                   CASE WHEN COUNT(*) = MAX(seq_num) - MIN(seq_num) + 1 THEN 'OK' ELSE 'GAP' END AS status
+            FROM concurrent_test
+            GROUP BY worker_id
+            ORDER BY worker_id;
+        " 2>/dev/null
+    } > "$result_file"
+
+    echo "$result_file"
+}
+
+compute_impact_stats() {
+    local output_file="${BUSINESS_LOAD_DIR}/impact_stats.log"
+    local marker_file="$PHASE_MARKER_FILE"
+
+    if [ ! -f "$marker_file" ]; then
+        echo "无 phase 标记文件" > "$output_file"
+        echo "$output_file"
+        return
+    fi
+
+    {
+        echo "==========================================="
+        echo "  每个测试场景的业务影响统计"
+        echo "==========================================="
+
+        local phases
+        phases=$(tail -n +2 "$marker_file" | cut -d',' -f2 | sort -u)
+
+        for phase in $phases; do
+            local start_ts end_ts
+            start_ts=$(grep ",${phase},start" "$marker_file" | tail -1 | cut -d',' -f1)
+            end_ts=$(grep ",${phase},end" "$marker_file" | tail -1 | cut -d',' -f1)
+
+            if [ -z "$start_ts" ] || [ -z "$end_ts" ]; then
+                echo ""
+                echo "--- ${phase} ---"
+                echo "  缺少标记，跳过"
+                continue
+            fi
+
+            echo ""
+            echo "--- ${phase} ---"
+            echo "  开始: ${start_ts}"
+            echo "  结束: ${end_ts}"
+
+            local total_ops=0 fail_ops=0 success_ops=0 total_latency=0 latency_count=0
+
+            for wf in "${BUSINESS_LOAD_DIR}"/worker_*.csv; do
+                [ -f "$wf" ] || continue
+                while IFS=',' read -r ts success latency; do
+                    [ "$ts" = "timestamp" ] && continue
+                    [ -z "$ts" ] && continue
+
+                    if [[ "$ts" > "$start_ts" || "$ts" = "$start_ts" ]] && [[ "$ts" < "$end_ts" || "$ts" = "$end_ts" ]]; then
+                        total_ops=$((total_ops + 1))
+                        if [ "$success" = "1" ]; then
+                            success_ops=$((success_ops + 1))
+                            latency_count=$((latency_count + 1))
+                            total_latency=$((total_latency + latency))
+                        else
+                            fail_ops=$((fail_ops + 1))
+                        fi
+                    fi
+                done < "$wf"
+            done
+
+            if [ $total_ops -gt 0 ]; then
+                local fail_rate
+                if [ $total_ops -gt 0 ]; then
+                    fail_rate=$(awk "BEGIN{printf \"%.2f\",${fail_ops}*100/${total_ops}}")
+                else
+                    fail_rate="0.00"
+                fi
+                local avg_latency=0
+                if [ $latency_count -gt 0 ]; then
+                    avg_latency=$((total_latency / latency_count))
+                fi
+                echo "  总操作数: ${total_ops}"
+                echo "  成功: ${success_ops}, 失败: ${fail_ops}"
+                echo "  失败率: ${fail_rate}%"
+                echo "  平均延迟: ${avg_latency}ms"
+            else
+                echo "  无业务操作记录"
+            fi
+        done
+    } > "$output_file"
+
+    echo "$output_file"
+}
+
+check_concurrent_load_running() {
+    if [ ! -f "${BUSINESS_LOAD_DIR}/workers.pid" ]; then
+        return 1
+    fi
+    local alive=0
+    while read -r pid; do
+        [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && alive=$((alive + 1))
+    done < "${BUSINESS_LOAD_DIR}/workers.pid"
+    [ $alive -gt 0 ]
+}
+
+snapshot_concurrent_stats() {
+    local label="$1"
+    local total_ops=0 success_ops=0 fail_ops=0
+    for wf in "${BUSINESS_LOAD_DIR}"/worker_*.csv; do
+        [ -f "$wf" ] || continue
+        local t s f
+        t=$(tail -n +2 "$wf" | wc -l)
+        s=$(tail -n +2 "$wf" | grep -c ',1,' 2>/dev/null || echo "0")
+        f=$(tail -n +2 "$wf" | grep -c ',0,' 2>/dev/null || echo "0")
+        total_ops=$((total_ops + t))
+        success_ops=$((success_ops + s))
+        fail_ops=$((fail_ops + f))
+    done
+    info "[业务快照:${label}] 总操作=${total_ops}, 成功=${success_ops}, 失败=${fail_ops}"
+}
+
 generate_report() {
     local report_file="$TEST_REPORT"
     {

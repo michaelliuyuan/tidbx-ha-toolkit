@@ -28,6 +28,7 @@ else
 fi
 
 section "--- 测试 2: 1s 延迟（应保持 SYNC）---"
+mark_phase "delay_1s" "start"
 info "添加 1s 网络延迟 (${NODE_IP} → ${PEER_IP})..."
 add_network_delay "$NODE_IP" "1s" "$NIC"
 sleep 30
@@ -38,6 +39,8 @@ if [ "$MODE_1S" = "SYNC" ]; then
 else
     record_result "1s 延迟下复制模式保持 SYNC" "FAIL" "实际: ${MODE_1S}"
 fi
+snapshot_concurrent_stats "delay_1s_after"
+mark_phase "delay_1s" "end"
 
 info "清除 1s 延迟..."
 remove_network_delay "$NODE_IP" "$NIC"
@@ -51,6 +54,8 @@ else
 fi
 
 section "--- 测试 4: 10s 延迟（应降级 ASYNC）---"
+mark_phase "delay_10s" "start"
+snapshot_concurrent_stats "delay_10s_before"
 info "添加 10s 网络延迟 (${NODE_IP} → ${PEER_IP})..."
 add_network_delay "$NODE_IP" "10s" "$NIC"
 sleep 30
@@ -61,6 +66,8 @@ if [ "$MODE_10S" = "ASYNC" ]; then
 else
     record_result "10s 延迟下复制模式降级 ASYNC" "FAIL" "实际: ${MODE_10S}"
 fi
+snapshot_concurrent_stats "delay_10s_after"
+mark_phase "delay_10s" "end"
 
 info "清除 10s 延迟..."
 remove_network_delay "$NODE_IP" "$NIC"

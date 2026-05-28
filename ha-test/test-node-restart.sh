@@ -28,6 +28,8 @@ else
 fi
 
 section "--- 测试 2: Master 节点关机 ---"
+mark_phase "master_shutdown" "start"
+snapshot_concurrent_stats "master_shutdown_before"
 info "关闭 Master 节点 (${NODE_IP})..."
 stop_node "$NODE_IP"
 sleep 10
@@ -52,6 +54,8 @@ if check_mysql_via_vip; then
 else
     record_result "Master 关机期间 TiDB 可用" "FAIL"
 fi
+snapshot_concurrent_stats "master_shutdown_after"
+mark_phase "master_shutdown" "end"
 
 section "--- 测试 3: Master 节点恢复 ---"
 info "启动 Master 节点 (${NODE_IP})..."
@@ -66,6 +70,8 @@ else
 fi
 
 section "--- 测试 4: Backup 节点关机 ---"
+mark_phase "backup_shutdown" "start"
+snapshot_concurrent_stats "backup_shutdown_before"
 info "关闭 Backup 节点 (${PEER_IP})..."
 stop_node "$PEER_IP"
 sleep 15
@@ -82,6 +88,8 @@ if check_mysql_via_vip; then
 else
     record_result "Backup 关机期间 TiDB 可用" "FAIL"
 fi
+snapshot_concurrent_stats "backup_shutdown_after"
+mark_phase "backup_shutdown" "end"
 
 section "--- 测试 5: Backup 节点恢复 ---"
 info "启动 Backup 节点 (${PEER_IP})..."

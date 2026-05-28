@@ -28,6 +28,8 @@ else
 fi
 
 section "--- 测试 2: 删除 Backup TiKV 数据 ---"
+mark_phase "data_corrupt" "start"
+snapshot_concurrent_stats "data_corrupt_before"
 info "删除 Backup (${PEER_IP}) TiKV 数据目录..."
 ssh_exec "$PEER_IP" "${SUDO} docker exec \$(${SUDO} docker ps -q) ls /var/lib/data/tikv/data/" 2>/dev/null || true
 ssh_exec "$PEER_IP" "${SUDO} docker exec \$(${SUDO} docker ps -q) rm -rf /var/lib/data/tikv/data/*" 2>/dev/null || true
@@ -41,6 +43,8 @@ if [ "$MODE_AFTER_CORRUPT" = "ASYNC" ]; then
 else
     record_result "Backup 数据损坏后复制模式变为 ASYNC" "WARN" "实际: ${MODE_AFTER_CORRUPT}"
 fi
+snapshot_concurrent_stats "data_corrupt_after"
+mark_phase "data_corrupt" "end"
 
 section "--- 测试 3: Master 端 TiDB 可用性 ---"
 if check_mysql_via_vip; then
