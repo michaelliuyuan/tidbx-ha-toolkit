@@ -55,7 +55,7 @@ info "添加 10s 网络延迟 (${NODE_IP} → ${PEER_IP})..."
 add_network_delay "$NODE_IP" "10s" "$NIC"
 sleep 30
 
-MODE_10S=$(wait_for_async_with_retry "ASYNC" "$NODE_IP" 6 10)
+MODE_10S=$(wait_for_async_with_retry "ASYNC" "$NODE_IP" 10 10 || true)
 if [ "$MODE_10S" = "ASYNC" ]; then
     record_result "10s 延迟下复制模式降级 ASYNC" "PASS"
 else

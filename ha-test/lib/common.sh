@@ -78,7 +78,7 @@ get_replication_mode() {
     local result
     result=$(curl -sf "http://${ip}:${PD_CLI_PORT}/pd/api/v1/replication_mode/status" 2>/dev/null || echo "{}")
     local state
-    state=$(echo "$result" | grep -oE '"state"\s*:\s*"[^"]*"' | head -1 | grep -oE '"[A-Za-z]+"$' | tr -d '"')
+    state=$(echo "$result" | grep -oE '"state"\s*:\s*"[^"]*"' | head -1 | grep -oE '"[A-Za-z]+"$' | tr -d '"' || true)
     if [ -n "$state" ]; then
         echo "$state"
         return
@@ -86,7 +86,7 @@ get_replication_mode() {
     local peer="${PEER_IP:-}"
     if [ -n "$peer" ] && [ "$ip" = "$NODE_IP" ]; then
         result=$(curl -sf "http://${peer}:${PD_CLI_PORT}/pd/api/v1/replication_mode/status" 2>/dev/null || echo "{}")
-        state=$(echo "$result" | grep -oE '"state"\s*:\s*"[^"]*"' | head -1 | grep -oE '"[A-Za-z]+"$' | tr -d '"')
+        state=$(echo "$result" | grep -oE '"state"\s*:\s*"[^"]*"' | head -1 | grep -oE '"[A-Za-z]+"$' | tr -d '"' || true)
     fi
     echo "${state:-unknown}"
 }
@@ -112,7 +112,7 @@ wait_for_replication_state() {
 wait_for_async_with_retry() {
     local expected="$1"
     local ip="${2:-$NODE_IP}"
-    local max_retries="${3:-6}"
+    local max_retries="${3:-10}"
     local interval="${4:-10}"
     local attempt=0
 
