@@ -1,35 +1,16 @@
 #!/bin/bash
-set -euo pipefail
+# 这是 Keepalived 的状态通知脚本
+# 它的作用是将当前的角色 (MASTER/BACKUP/FAULT) 写入文件
 
-STATE="$1"
-ROLE="$2"
-VIP="${VIP:-}"
-NIC="${NIC:-ens33}"
+TYPE=$1      # 通常是 "INSTANCE"
+NAME=$2      # VRRP 实例的名称
+STATE=$3     # 目标状态：MASTER, BACKUP, 或 FAULT
 
-case "$STATE" in
-    MASTER)
-        logger -t keepalived_notify "Transitioning to MASTER on ${NIC}"
-        if [ -n "$VIP" ]; then
-            ip addr add "${VIP}/${VIP_PREFIX:-24}" dev "${NIC}" 2>/dev/null || true
-        fi
-        arping -c 3 -A -I "${NIC}" "${VIP}" 2>/dev/null || true
-        logger -t keepalived_notify "VIP ${VIP} activated"
-        ;;
-    BACKUP)
-        logger -t keepalived_notify "Transitioning to BACKUP"
-        if [ -n "$VIP" ]; then
-            ip addr del "${VIP}/${VIP_PREFIX:-24}" dev "${NIC}" 2>/dev/null || true
-        fi
-        ;;
-    FAULT)
-        logger -t keepalived_notify "Entering FAULT state"
-        if [ -n "$VIP" ]; then
-            ip addr del "${VIP}/${VIP_PREFIX:-24}" dev "${NIC}" 2>/dev/null || true
-        fi
-        ;;
-    *)
-        logger -t keepalived_notify "Unknown state: $STATE"
-        ;;
-esac
+# 指定状态文件的路径
+STATE_FILE="/tmp/keepalived_state"
 
-exit 0
+# 将当前状态和实例名写入文件
+echo "$STATE" > "$STATE_FILE"
+
+# 可选：向系统日志发送一条消息，方便排查问题
+logger "Keepalived: VRRP instance $NAME transitioned to $STATE state. State written to $STATE_FILE"
