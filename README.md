@@ -160,6 +160,12 @@ sudo bash deploy/deploy-cluster.sh --env config/node2.env --offline-dir /home/ti
 
 > ⚠️ **重要**：**必须先完成 Node1 的部署，再部署 Node2**。两个节点会自动组成集群。
 
+> 💡 **部署后检查**：部署完成后，建议手动确认以下内容：
+> 1. `/tmp/keepalived_state` 是文件而非目录：`file /tmp/keepalived_state`
+> 2. Master 节点 `/tmp/keepalived_state` 内容为 `MASTER`
+> 3. 仲裁脚本返回正确退出码：`/data/scripts/keepalived_arbiter.sh; echo $?`（Master 返回 0，Backup 返回 1）
+> 4. Keepalived 日志无 "Unsafe permissions" 警告：`sudo journalctl -u keepalived --since "5 minutes ago" | grep -i unsafe`
+
 ### 第 5 步：验证集群
 
 在任意节点上执行：
@@ -220,6 +226,8 @@ sudo bash ha-test/run-all.sh --env config/node1.env
 #### 3. 数据损坏测试
 模拟存储故障场景：
 - 删除 Backup 节点 TiKV 数据目录 → 集群降级但 Master 仍可用
+
+> ⚠️ **注意**：此测试会删除 Backup 节点的 TiKV 数据文件，但 Docker 容器内的 TiKV 进程仍在运行。PD 可能在短时间内不会检测到数据丢失（因为进程仍在响应心跳）。如果 PD 未在 30 秒内检测到异常，测试会显示 "实际: SYNC"，这是预期行为。测试完成后需要重新部署 Backup 节点。
 
 #### 4. 业务模拟
 在故障注入期间持续写入数据，统计：
@@ -516,6 +524,62 @@ sudo docker compose -f config/docker-compose/docker-compose_node1.yml logs --tai
 # 查看 Keepalived 日志
 sudo journalctl -u keepalived --since "10 minutes ago"
 ```
+
+### Q: Keepalived 日志提示 "Unsafe permissions found for script" 脚本被禁用
+**A:** Keepalived 配置了 `enable_script_security`，要求脚本文件及其父目录必须归 `root` 所有。如果脚本归普通用户所有，Keepalived 会自动禁用脚本，导致 `notify.sh` 不写入状态、仲裁脚本不执行。
+修复方法：
+```bash
+sudo chown root:root /data/scripts /data/scripts/notify.sh /data/scripts/keepalived_arbiter.sh
+sudo chmod 755 /data/scripts/notify.sh /data/scripts/keepalived_arbiter.sh
+sudo systemctl restart keepalived
+```
+
+验证是否修复：
+```bash
+sudo journalctl -u keepalived --since "1 minute ago" | grep -i "unsafe"
+# 如果没有输出，说明权限正确
+```
+
+### Q: /tmp/keepalived_state 是目录而不是文件
+**A:** 旧版 `init-data.sh` 使用 `mkdir -p` 创建了目录。`notify.sh` 无法写入目录，仲裁脚本也无法读取，导致 ASYNC 降级失败。
+修复方法：
+```bash
+sudo rm -rf /tmp/keepalived_state
+sudo touch /tmp/keepalived_state
+sudo chmod 666 /tmp/keepalived_state
+sudo systemctl restart keepalived
+```
+
+验证：
+```bash
+file /tmp/keepalived_state
+# 正确输出应为: /tmp/keepalived_state: ASCII text 或 empty
+# 如果输出 directory 则说明有问题
+```
+
+### Q: 节点长时间关机后恢复无法重新加入集群
+**A:** 节点长时间离线后，PD 可能会将该节点从集群成员中移除。恢复时容器会反复重启（`RestartCount` 不断增加）。
+解决方法：需要完全清理两个节点的 PD 数据并重新部署：
+```bash
+# 在两个节点上执行
+sudo docker stop $(sudo docker ps -q) 2>/dev/null
+sudo docker rm $(sudo docker ps -aq) 2>/dev/null
+sudo systemctl stop keepalived
+sudo rm -rf /data/tidb/var/pd/data/* /data/tidb/var/tikv/data/*
+rm -f /tmp/keepalived_state && touch /tmp/keepalived_state
+# 然后重新执行部署步骤（先部署 Node1，再部署 Node2）
+```
+
+### Q: HA 测试需要安装 MySQL 客户端
+**A:** 运行 HA 测试（特别是业务模拟和 TiDB 可用性检测）需要在 Master 节点上安装 MySQL 客户端：
+```bash
+# CentOS/Rocky Linux
+sudo yum install -y mysql
+
+# Ubuntu/Debian
+sudo apt-get install -y mysql-client
+```
+如果未安装 MySQL 客户端，测试脚本会退化为使用 `nc` 检测端口连通性，部分检测项结果可能不准确。
 
 ---
 
