@@ -95,6 +95,7 @@ vi config/node1.env
 ```bash
 # ===== 必须修改的参数 =====
 NODE_ROLE=master              # 保持 master
+DC_LABEL=dc1                  # 保持 dc1
 NODE_IP=192.168.2.24          # ← 改为 Node1 的实际 IP
 PEER_IP=192.168.2.25          # ← 改为 Node2 的实际 IP
 NIC=ens33                     # ← 改为实际网卡名称（通过 ip addr 查看）
@@ -117,6 +118,7 @@ vi config/node2.env
 ```bash
 # ===== 必须修改的参数 =====
 NODE_ROLE=backup              # 保持 backup
+DC_LABEL=dc2                  # 保持 dc2
 NODE_IP=192.168.2.25          # ← 改为 Node2 的实际 IP
 PEER_IP=192.168.2.24          # ← 改为 Node1 的实际 IP
 NIC=ens33                     # ← 改为实际网卡名称
@@ -164,7 +166,7 @@ sudo bash deploy/deploy-cluster.sh --env config/node2.env --offline-dir /home/ti
 
 ```bash
 cd /home/tidb/tidbx-ha-toolkit
-bash deploy/verify.sh --env config/node1.env
+sudo bash deploy/verify.sh --env config/node1.env
 ```
 
 如果看到所有检查项都显示 ✅，说明部署成功！
@@ -438,8 +440,10 @@ tidbx-ha-toolkit/
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `NODE_ROLE` | 节点角色 (master/backup) | master |
+| `DC_LABEL` | 数据中心标签 (node1=dc1, node2=dc2) | dc1 |
 | `NODE_IP` | 本机 IP | - |
 | `PEER_IP` | 对端 IP | - |
+| `SSH_USER` | SSH 用户（HA 测试用） | root |
 | `NIC` | 网卡名称 | ens33 |
 | `VIP` | 虚拟 IP | - |
 | `VIP_PREFIX` | VIP 子网前缀 | 24 |

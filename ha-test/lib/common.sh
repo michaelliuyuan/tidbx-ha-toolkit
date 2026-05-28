@@ -57,12 +57,12 @@ record_result() {
     local ts
     ts=$(date '+%Y-%m-%d %H:%M:%S')
 
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     if [ "$result" = "PASS" ]; then
-        ((PASSED_TESTS++))
+        PASSED_TESTS=$((PASSED_TESTS + 1))
         echo -e "${GREEN}[PASS]${NC} ${test_name}" | tee -a "$TEST_REPORT"
     else
-        ((FAILED_TESTS++))
+        FAILED_TESTS=$((FAILED_TESTS + 1))
         echo -e "${RED}[FAIL]${NC} ${test_name}" | tee -a "$TEST_REPORT"
     fi
 
@@ -77,7 +77,18 @@ get_replication_mode() {
     local ip="${1:-$NODE_IP}"
     local result
     result=$(curl -sf "http://${ip}:${PD_CLI_PORT}/pd/api/v1/replication_mode/status" 2>/dev/null || echo "{}")
-    echo "$result" | grep -o '"mode":"[^"]*"' | head -1 | cut -d'"' -f4
+    local state
+    state=$(echo "$result" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4)
+    if [ -n "$state" ]; then
+        echo "$state"
+        return
+    fi
+    local peer="${PEER_IP:-}"
+    if [ -n "$peer" ] && [ "$ip" = "$NODE_IP" ]; then
+        result=$(curl -sf "http://${peer}:${PD_CLI_PORT}/pd/api/v1/replication_mode/status" 2>/dev/null || echo "{}")
+        state=$(echo "$result" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4)
+    fi
+    echo "${state:-unknown}"
 }
 
 wait_for_replication_state() {
