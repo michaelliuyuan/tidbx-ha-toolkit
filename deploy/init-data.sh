@@ -33,7 +33,7 @@ mkdir -p "${DATA_DIR}/var/tikv/data"
 mkdir -p "${DATA_DIR}/var/tikv/log"
 mkdir -p "${DATA_DIR}/var/tidb/log"
 mkdir -p "${SCRIPTS_DIR}"
-mkdir -p "/tmp/keepalived_state"
+touch "/tmp/keepalived_state"
 
 echo "=== 生成配置文件 ==="
 envsubst < "${PROJECT_DIR}/config/template/pd.toml" > "${DATA_DIR}/etc/pd.toml"
