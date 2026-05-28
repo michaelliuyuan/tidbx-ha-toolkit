@@ -42,11 +42,11 @@ else
     record_result "Backup 数据损坏后复制模式变为 ASYNC" "WARN" "实际: ${MODE_AFTER_CORRUPT}"
 fi
 
-section "--- 测试 3: Master 端 MySQL 可用性 ---"
+section "--- 测试 3: Master 端 TiDB 可用性 ---"
 if check_mysql_via_vip; then
-    record_result "数据损坏后 Master MySQL 可用" "PASS"
+    record_result "数据损坏后 Master TiDB 可用" "PASS"
 else
-    record_result "数据损坏后 Master MySQL 可用" "FAIL"
+    record_result "数据损坏后 Master TiDB 可用" "FAIL"
 fi
 
 section "--- 测试 4: 重置 Backup 节点 ---"

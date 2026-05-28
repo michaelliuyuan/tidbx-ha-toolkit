@@ -50,7 +50,7 @@ fi
 if check_tidb_cluster && check_mysql && check_vip; then
     if [ "$current_state" != "OK" ]; then
         write_state "OK"
-        logger -t keepalived_arbiter "Cluster state: OK (PD healthy, MySQL available, VIP present)"
+        logger -t keepalived_arbiter "Cluster state: OK (PD healthy, TiDB available, VIP present)"
     fi
     exit 0
 elif check_tidb_cluster; then

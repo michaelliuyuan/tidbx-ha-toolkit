@@ -48,9 +48,9 @@ else
 fi
 
 if check_mysql_via_vip; then
-    record_result "Master 关机期间 MySQL 可用" "PASS"
+    record_result "Master 关机期间 TiDB 可用" "PASS"
 else
-    record_result "Master 关机期间 MySQL 可用" "FAIL"
+    record_result "Master 关机期间 TiDB 可用" "FAIL"
 fi
 
 section "--- 测试 3: Master 节点恢复 ---"
@@ -78,9 +78,9 @@ else
 fi
 
 if check_mysql_via_vip; then
-    record_result "Backup 关机期间 MySQL 可用 (VIP)" "PASS"
+    record_result "Backup 关机期间 TiDB 可用 (VIP)" "PASS"
 else
-    record_result "Backup 关机期间 MySQL 可用" "FAIL"
+    record_result "Backup 关机期间 TiDB 可用" "FAIL"
 fi
 
 section "--- 测试 5: Backup 节点恢复 ---"
