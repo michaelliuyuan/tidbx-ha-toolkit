@@ -40,8 +40,7 @@ else
     record_result "VIP 漂移到 Backup" "FAIL" "VIP 未在 Backup 节点上"
 fi
 
-sleep 15
-MODE_AFTER_MASTER_DOWN=$(get_replication_mode "$PEER_IP")
+MODE_AFTER_MASTER_DOWN=$(wait_for_async_with_retry "ASYNC" "$PEER_IP" 6 10)
 if [ "$MODE_AFTER_MASTER_DOWN" = "ASYNC" ]; then
     record_result "Master 关机后复制模式 ASYNC" "PASS"
 else
@@ -71,7 +70,7 @@ info "关闭 Backup 节点 (${PEER_IP})..."
 stop_node "$PEER_IP"
 sleep 15
 
-MODE_AFTER_BACKUP_DOWN=$(get_replication_mode "$NODE_IP")
+MODE_AFTER_BACKUP_DOWN=$(wait_for_async_with_retry "ASYNC" "$NODE_IP" 6 10)
 if [ "$MODE_AFTER_BACKUP_DOWN" = "ASYNC" ]; then
     record_result "Backup 关机后复制模式 ASYNC" "PASS"
 else
