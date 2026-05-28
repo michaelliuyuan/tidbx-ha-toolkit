@@ -33,7 +33,7 @@ add_network_delay "$NODE_IP" "1s" "$NIC"
 sleep 30
 
 MODE_1S=$(get_replication_mode "$NODE_IP")
-if [ "$MODE_1S" = "sync" ]; then
+if [ "$MODE_1S" = "SYNC" ]; then
     record_result "1s 延迟下复制模式保持 SYNC" "PASS"
 else
     record_result "1s 延迟下复制模式保持 SYNC" "FAIL" "实际: ${MODE_1S}"
