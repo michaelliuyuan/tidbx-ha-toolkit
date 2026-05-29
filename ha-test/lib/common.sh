@@ -216,7 +216,7 @@ start_concurrent_load() {
             worker_id INT NOT NULL,
             seq_num BIGINT NOT NULL,
             val VARCHAR(100),
-            ts TIMESTAMP(3)(3) DEFAULT CURRENT_TIMESTAMP(3),
+            ts TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3),
             UNIQUE KEY uk_worker_seq (worker_id, seq_num)
         );
         TRUNCATE TABLE concurrent_test;

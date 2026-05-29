@@ -219,9 +219,12 @@ sudo bash ha-test/run-all.sh --env config/node1.env
 
 #### 2. 网络延迟测试
 模拟网络抖动场景：
-- **1 秒延迟** → 集群保持同步复制（SYNC），数据一致
+- **1 秒延迟** → 集群保持同步复制（SYNC），数据一致（使用重试机制确认）
 - **10 秒延迟** → 集群自动降级为异步复制（ASYNC），数据库仍可用
-- 延迟清除 → 集群自动恢复同步
+- **网络完全隔离** → 两节点间 iptables 互相 DROP，触发仲裁降级为 ASYNC
+- 延迟/隔离清除 → 集群自动恢复同步
+
+> ⚠️ **注意**：网络完全隔离测试需要在测试节点本地执行（从 Master 节点发起即可），脚本会自动在两个节点上添加/清除 iptables 规则。测试期间 SSH 连接可能短暂中断。
 
 #### 3. 数据损坏测试
 模拟存储故障场景：
@@ -250,6 +253,21 @@ sudo bash ha-test/test-network-delay.sh --env config/node1.env
 # 只测试数据损坏
 sudo bash ha-test/test-data-corrupt.sh --env config/node1.env
 ```
+
+### 最新测试报告
+
+完整的测试报告详见 [docs/ha-test-report.md](docs/ha-test-report.md)。
+
+测试结论摘要：
+
+| 测试场景 | 结果 | 说明 |
+|----------|------|------|
+| 环境预检 | 6/6 PASS | Docker/PD/Keepalived/VIP 全部正常 |
+| 节点重启 | 8/8 PASS | Master/Backup 关机后 ASYNC 降级，恢复后 SYNC |
+| 网络延迟 | 7/7 PASS | 1s 保持 SYNC，10s 降级 ASYNC，完全隔离降级 ASYNC |
+| 数据损坏 | 3/4 PASS | TiKV 进程未退出时 PD 不检测（预期行为） |
+| 并发业务 | 99.45% | 10 并发 31,090 操作，无静默数据丢失 |
+| 业务中断 | ~15s | Master 关机 VIP 漂移期间，网络延迟不中断 |
 
 ---
 
@@ -441,6 +459,7 @@ tidbx-ha-toolkit/
 │   ├── template/             # PD/TiKV/TiDB/Keepalived 配置
 │   └── docker-compose/       # Docker Compose 文件
 └── docs/                     # 文档
+    └── ha-test-report.md     # 最新 HA 测试报告
 ```
 
 ## ⚙️ 配置参数说明
